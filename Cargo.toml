@@ -32,6 +32,8 @@ zkevm-circuits = { git = "https://github.com/scroll-tech/zkevm-circuits.git", ta
 
 integration = { path = "integration" }
 
+pprof = { version = "0.13", features = ["flamegraph"] }
+
 [patch.crates-io]
 halo2curves = { git = "https://github.com/scroll-tech/halo2curves", branch = "v0.1.0" }
 ethers-core = { git = "https://github.com/scroll-tech/ethers-rs.git", branch = "v2.0.7" }
