@@ -1,10 +1,13 @@
 #![feature(core_intrinsics)]
 
-use std::fs::{File, read_to_string};
-use std::intrinsics::black_box;
-use std::mem;
-use prover::BlockTrace;
 use integration::test_util::{ccc_as_signer, prepare_circuit_capacity_checker};
+use prover::BlockTrace;
+use std::{
+    fs::{read_to_string, File},
+    intrinsics::black_box,
+    mem,
+};
+use zkevm_circuits::witness::CHECK_VALUE_COST;
 
 fn main() {
     prepare_circuit_capacity_checker();
@@ -13,22 +16,22 @@ fn main() {
 
     let now = std::time::Instant::now();
 
-    let traces = glob::glob(format!("{path}/**/*.json").as_str()).unwrap()
+    let traces = glob::glob(format!("{path}/**/*.json").as_str())
+        .unwrap()
         .flatten()
-        .map(|p| {
-            read_to_string(p)
-        })
+        .map(|p| read_to_string(p))
         .collect::<Result<Vec<_>, _>>()
         .unwrap()
         .into_iter()
-        .map(|s| serde_json::from_str(&s).or_else(|_| {
-            #[derive(serde::Deserialize, Default, Debug, Clone)]
-            pub struct BlockTraceJsonRpcResult {
-                pub result: BlockTrace,
-            }
-            serde_json::from_str::<BlockTraceJsonRpcResult>(&s)
-                .map(|r| r.result)
-        }))
+        .map(|s| {
+            serde_json::from_str(&s).or_else(|_| {
+                #[derive(serde::Deserialize, Default, Debug, Clone)]
+                pub struct BlockTraceJsonRpcResult {
+                    pub result: BlockTrace,
+                }
+                serde_json::from_str::<BlockTraceJsonRpcResult>(&s).map(|r| r.result)
+            })
+        })
         .collect::<Result<Vec<BlockTrace>, _>>()
         .unwrap();
 
@@ -57,9 +60,19 @@ fn main() {
     };
 
     let total_elapsed = now.elapsed();
+
+    let check_value_cost = CHECK_VALUE_COST.lock().unwrap();
+
+    let check_value_cost = check_value_cost
+        .iter()
+        .map(|d| d.as_millis() as f64)
+        .sum::<f64>()
+        / check_value_cost.len() as f64;
+
     println!(
-        "deserialize_elapsed: {:.2}ms, total_elapsed: {:.2}ms",
+        "deserialize_elapsed: {:.2}ms, total_elapsed: {:.2}ms, check_value_cost: {:.2}ms",
         deserialize_elapsed.as_millis() as f64 / len as f64,
         total_elapsed.as_millis() as f64 / len as f64,
+        check_value_cost
     );
 }
