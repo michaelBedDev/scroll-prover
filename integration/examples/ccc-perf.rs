@@ -37,29 +37,44 @@ fn main() {
 
     let len = traces.len();
 
-    let traces = traces.into_iter();
-
     let deserialize_elapsed = now.elapsed();
+    println!("json deserialize_elapsed: {:.2}ms", deserialize_elapsed.as_millis() as f64 / len as f64);
 
+    let now = std::time::Instant::now();
+    let msg_pack_traces = traces.iter().map(|t| rmp_serde::to_vec(t))
+        .collect::<Result<Vec<Vec<u8>>, _>>()
+        .unwrap();
+    let serialize_elapsed = now.elapsed();
+    println!("msg_pack serialize_elapsed: {:.2}ms", serialize_elapsed.as_millis() as f64 / len as f64);
+
+    let now = std::time::Instant::now();
+    let traces = msg_pack_traces.iter().map(|t| rmp_serde::from_slice(t))
+        .collect::<Result<Vec<BlockTrace>, _>>()
+        .unwrap();
+    let deserialize_elapsed = now.elapsed();
+    println!("msg_pack deserialize_elapsed: {:.2}ms", deserialize_elapsed.as_millis() as f64 / len as f64);
+
+
+    let traces = traces.into_iter();
     let guard = pprof::ProfilerGuardBuilder::default()
         .frequency(1000)
         .blocklist(&["libc", "libgcc", "pthread", "vdso"])
         .build()
         .unwrap();
 
+    let now = std::time::Instant::now();
     for trace in traces {
         let trace = [trace];
         let result = ccc_as_signer(0, &trace);
         black_box(result); // avoid optimization
         mem::forget(trace); // leak, avoid
     }
+    let ccc_elapsed = now.elapsed();
 
     if let Ok(report) = guard.report().build() {
         let file = File::create("flamegraph.svg").unwrap();
         report.flamegraph(file).unwrap();
     };
-
-    let total_elapsed = now.elapsed();
 
     let check_value_cost = CHECK_VALUE_COST.lock().unwrap();
 
@@ -70,9 +85,8 @@ fn main() {
         / check_value_cost.len() as f64;
 
     println!(
-        "deserialize_elapsed: {:.2}ms, total_elapsed: {:.2}ms, check_value_cost: {:.2}ms",
-        deserialize_elapsed.as_millis() as f64 / len as f64,
-        total_elapsed.as_millis() as f64 / len as f64,
+        "ccc_elapsed: {:.2}ms, check_value_cost: {:.2}ms",
+        ccc_elapsed.as_millis() as f64 / len as f64,
         check_value_cost
     );
 }

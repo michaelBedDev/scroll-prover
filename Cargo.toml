@@ -32,6 +32,7 @@ zkevm-circuits = { git = "https://github.com/scroll-tech/zkevm-circuits.git", re
 
 integration = { path = "integration" }
 
+rmp-serde = "1.3"
 pprof = { version = "0.13", features = ["flamegraph"] }
 
 [patch.crates-io]

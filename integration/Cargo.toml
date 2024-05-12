@@ -21,6 +21,7 @@ serde.workspace = true
 serde_json.workspace = true
 serde_derive.workspace = true
 pprof.workspace = true
+rmp-serde.workspace = true
 
 [features]
 default = []
